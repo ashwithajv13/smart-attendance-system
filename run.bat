@@ -1,23 +1,44 @@
 @echo off
-REM Smart Attendance System - Quick Start
+title Smart Attendance System
+color 0A
 
-echo ========================================
-echo  Smart Attendance System
-echo ========================================
+echo.
+echo  ==========================================
+echo   Smart Attendance System
+echo  ==========================================
 echo.
 
+REM Use python -m pip instead of pip directly (works even if pip not on PATH)
 echo [1/3] Installing dependencies...
-pip install -r requirements.txt
-if errorlevel 1 ( echo Install failed! & exit /b 1 )
+python -m pip install -r requirements.txt --quiet
+if errorlevel 1 (
+    echo.
+    echo  ERROR: pip install failed.
+    echo  Make sure Python is installed: https://python.org
+    pause
+    exit /b 1
+)
 
-echo.
-echo [2/3] Creating database...
+echo [2/3] Setting up database...
 if not exist "database" mkdir database
 python init_db.py
+if errorlevel 1 (
+    echo  ERROR: Database setup failed.
+    pause
+    exit /b 1
+)
 
 echo.
 echo [3/3] Starting server...
-echo  Open http://localhost:5000 in your browser
-echo  Press Ctrl+C to stop
 echo.
+echo  ==========================================
+echo   Open this in your browser:
+echo   http://localhost:5000
+echo  ==========================================
+echo.
+echo  Press Ctrl+C to stop the server.
+echo.
+
 python backend/app.py
+
+pause

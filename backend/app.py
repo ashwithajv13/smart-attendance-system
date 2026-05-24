@@ -279,10 +279,35 @@ def enroll_face(student_id):
 @app.route("/api/students/<int:student_id>", methods=["DELETE"])
 def delete_student(student_id):
     student = Student.query.get_or_404(student_id)
+    name = student.name
     Attendance.query.filter_by(student_id=student.id).delete()
     db.session.delete(student)
     db.session.commit()
-    return jsonify({"message": "Student removed", "student_id": student_id})
+    return jsonify({"message": f"{name} removed successfully"})
+
+
+@app.route("/api/students/<int:student_id>/reset-face", methods=["POST"])
+def reset_face(student_id):
+    student = Student.query.get_or_404(student_id)
+    student.face_encoding = None
+    db.session.commit()
+    return jsonify({"message": "Face data cleared. Student can re-enroll."})
+
+
+@app.route("/api/students/search", methods=["GET"])
+def search_students():
+    q = request.args.get("q", "").strip()
+    if not q:
+        students = Student.query.order_by(Student.name).all()
+        return jsonify([s.to_dict() for s in students])
+    results = Student.query.filter(
+        db.or_(
+            Student.name.ilike(f"%{q}%"),
+            Student.student_id.ilike(f"%{q}%"),
+            Student.email.ilike(f"%{q}%"),
+        )
+    ).order_by(Student.name).all()
+    return jsonify([s.to_dict() for s in results])
 
 
 # ── Routes — Sessions ─────────────────────────────────────────────────────────

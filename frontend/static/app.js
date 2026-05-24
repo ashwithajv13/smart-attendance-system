@@ -638,38 +638,112 @@ async function initMap() {
 $('mapSessionSelect').addEventListener('change', initMap);
 
 // ── Students ──────────────────────────────────────────────────────────────────
-async function loadStudentsView() {
-  const students = await api('/students');
+async function loadStudentsView(query='') {
+  const url = query ? `/students/search?q=${encodeURIComponent(query)}` : '/students';
+  const students = await api(url);
   const el = $('studentsList');
-  if (!students.length) { el.innerHTML = '<p style="color:var(--muted)">No students registered.</p>'; return; }
-  el.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Face Enrolled</th><th>Registered</th><th>Actions</th></tr></thead>
-    <tbody>${students.map(s => `<tr>
-      <td>${s.student_id}</td>
-      <td>${s.name}</td>
-      <td>${s.email}</td>
-      <td>${s.has_face ? '<span class="badge badge-green">Yes</span>' : '<span class="badge badge-gray">No</span>'}</td>
-      <td>${new Date(s.created_at).toLocaleDateString()}</td>
-      <td><button class="btn btn-danger btn-sm delete-student-btn" data-student-id="${s.id}" data-student-label="${s.student_id}">Remove</button></td>
-    </tr>`).join('')}</tbody>
-  </table></div>`;
+
+  const searchBar = `
+    <div class="search-bar">
+      <input type="text" id="studentSearch" class="input" placeholder="Search by name, ID or email..." value="${query}"/>
+      <button class="btn btn-outline" id="studentSearchBtn">Search</button>
+    </div>`;
+
+  if (!students.length) {
+    el.innerHTML = searchBar + '<p class="empty-msg">No students found.</p>';
+    wireStudentSearch(); return;
+  }
+
+  el.innerHTML = searchBar + `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Student ID</th><th>Name</th><th>Email</th>
+        <th>Face</th><th>Registered</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${students.map(s => `
+        <tr id="srow-${s.id}">
+          <td><code>${s.student_id}</code></td>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.email}</td>
+          <td>${s.has_face
+            ? '<span class="badge badge-green">Enrolled</span>'
+            : '<span class="badge badge-gray">Not enrolled</span>'}</td>
+          <td>${new Date(s.created_at).toLocaleDateString()}</td>
+          <td>
+            <div class="btn-row" style="margin:0;gap:6px;flex-wrap:nowrap">
+              <button class="btn btn-outline" style="padding:5px 10px;font-size:.78rem"
+                onclick="viewStudentHistory(${s.id},'${s.name.replace(/'/g,"\\'")}')">History</button>
+              ${s.has_face ? `<button class="btn btn-ghost" style="padding:5px 10px;font-size:.78rem"
+                onclick="resetStudentFace(${s.id},'${s.name.replace(/'/g,"\\'")}')">Reset Face</button>` : ''}
+              <button class="btn btn-danger" style="padding:5px 10px;font-size:.78rem"
+                onclick="deleteStudent(${s.id},'${s.name.replace(/'/g,"\\'")}')">Delete</button>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+
+  wireStudentSearch();
 }
 
-$('studentsList').addEventListener('click', async event => {
-  const btn = event.target.closest('.delete-student-btn');
-  if (!btn) return;
-  const studentId = btn.dataset.studentId;
-  const studentLabel = btn.dataset.studentLabel;
-  if (!studentId) return;
-  if (!confirm(`Remove student ${studentLabel}? This will also delete their attendance history.`)) return;
-  const res = await api(`/students/${studentId}`, { method: 'DELETE' });
-  if (res.error) {
-    alert('Could not remove student: ' + res.error);
-  } else {
-    alert('Student removed successfully.');
-    loadStudentsView();
-  }
-});
+function wireStudentSearch() {
+  const inp = $('studentSearch'), btn = $('studentSearchBtn');
+  if (!inp || !btn) return;
+  btn.addEventListener('click', () => loadStudentsView(inp.value.trim()));
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') loadStudentsView(inp.value.trim()); });
+}
+
+async function deleteStudent(id, name) {
+  if (!confirm(`Delete "${name}" and all their attendance records?\nThis cannot be undone.`)) return;
+  const res = await api(`/students/${id}`, { method: 'DELETE' });
+  if (res.error) { alert('Error: ' + res.error); return; }
+  const row = $('srow-' + id);
+  if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .3s'; setTimeout(() => loadStudentsView(), 350); }
+  else loadStudentsView();
+}
+window.deleteStudent = deleteStudent;
+
+async function resetStudentFace(id, name) {
+  if (!confirm(`Clear face data for "${name}"?\nThey will need to re-enroll their face.`)) return;
+  const res = await api(`/students/${id}/reset-face`, { method: 'POST' });
+  if (res.error) { alert('Error: ' + res.error); return; }
+  alert(res.message);
+  loadStudentsView();
+}
+window.resetStudentFace = resetStudentFace;
+
+async function viewStudentHistory(id, name) {
+  const records = await api(`/attendance/student/${id}`);
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:620px;width:95%;text-align:left">
+      <button class="modal-x" onclick="this.closest('.modal-overlay').remove()">
+        <svg viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <div class="modal-badge">ATTENDANCE HISTORY</div>
+      <h3 style="margin-bottom:4px">${name}</h3>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">${records.length} record(s)</p>
+      ${records.length === 0
+        ? '<p style="color:var(--muted)">No attendance records yet.</p>'
+        : `<div class="table-wrap" style="max-height:360px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Course</th><th>Date &amp; Time</th><th>QR</th><th>Face</th><th>GPS</th><th>Status</th></tr></thead>
+              <tbody>${records.map(r => `<tr>
+                <td>${r.course || '—'}</td>
+                <td>${new Date(r.timestamp).toLocaleString()}</td>
+                <td>${r.qr_verified ? '✓' : '✗'}</td>
+                <td>${r.face_verified ? '✓' : '—'}</td>
+                <td>${r.gps_status === 'ok' ? '✓' : r.gps_status}</td>
+                <td>${statusBadge(r.status)}</td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>`}
+    </div>`;
+  modal.addEventListener('click', e => { if (!e.target.closest('.modal-box')) modal.remove(); });
+  document.body.appendChild(modal);
+}
+window.viewStudentHistory = viewStudentHistory;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAGE 4 — REGISTER STUDENT
