@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SmartAttend — Smart Attendance System</title>
+  <link rel="manifest" href="/static/manifest.json"/>
+  <meta name="theme-color" content="#6366f1"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<!-- ── Sidebar Nav ──────────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">SA</div>
+    <span class="logo-text">SmartAttend</span>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="snav-btn active" data-page="attend">
+      <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Mark Attendance
+    </button>
+    <button class="snav-btn" data-page="enroll">
+      <svg viewBox="0 0 24 24"><path d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Enroll Face
+    </button>
+    <button class="snav-btn" data-page="admin">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+      Admin Dashboard
+    </button>
+    <button class="snav-btn" data-page="register">
+      <svg viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      Register Student
+    </button>
+  </nav>
+  <div class="sidebar-footer">v2.0 &nbsp;·&nbsp; Free Tier Safe</div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<div class="main-wrap">
+
+  <!-- Mobile header -->
+  <header class="mobile-header">
+    <button class="hamburger" id="hamburger">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="mobile-logo">SmartAttend</span>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PAGE: MARK ATTENDANCE
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="page active" id="page-attend">
+    <div class="page-hero">
+      <h1>Mark Attendance</h1>
+      <p>Scan QR &rarr; Verify Face &rarr; Confirm Location &rarr; Done</p>
+    </div>
+
+    <!-- Step bar -->
+    <div class="stepbar">
+      <div class="stepbar-item active" id="step1">
+        <div class="stepbar-circle">1</div>
+        <span>Scan QR</span>
+      </div>
+      <div class="stepbar-line"></div>
+      <div class="stepbar-item" id="step2">
+        <div class="stepbar-circle">2</div>
+        <span>Face</span>
+      </div>
+      <div class="stepbar-line"></div>
+      <div class="stepbar-item" id="step3">
+        <div class="stepbar-circle">3</div>
+        <span>GPS</span>
+      </div>
+      <div class="stepbar-line"></div>
+      <div class="stepbar-item" id="step4">
+        <div class="stepbar-circle">4</div>
+        <span>Submit</span>
+      </div>
+    </div>
+
+    <!-- Step 1 — QR -->
+    <div class="glass-card step-panel active" id="panel-qr">
+      <div class="panel-icon">📱</div>
+      <h2>Scan Session QR Code</h2>
+      <p class="panel-sub">Point your camera at the QR code your lecturer is displaying.</p>
+      <div class="cam-frame" id="qrCamFrame">
+        <video id="qrVideo" autoplay playsinline muted></video>
+        <canvas id="qrCanvas" style="display:none"></canvas>
+        <div class="cam-corners">
+          <span class="corner tl"></span><span class="corner tr"></span>
+          <span class="corner bl"></span><span class="corner br"></span>
+        </div>
+        <div class="cam-placeholder" id="qrPlaceholder">
+          <svg viewBox="0 0 24 24"><path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4m10-16h4a2 2 0 012 2v4m0 6v4a2 2 0 01-2 2h-4"/></svg>
+          <span>Camera off</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-icon" id="startQrCamera">
+        <svg viewBox="0 0 24 24"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+        Start Camera
+      </button>
+      <div class="form-field">
+        <label>Camera</label>
+        <select id="qrCameraMode" class="input">
+          <option value="environment">Back camera</option>
+          <option value="user">Front camera</option>
+        </select>
+      </div>
+      <div class="or-divider"><span>or enter token manually</span></div>
+      <div class="input-group">
+        <input type="text" id="manualToken" class="input" placeholder="Paste JWT token here"/>
+        <button class="btn btn-outline" id="useManualToken">Use</button>
+      </div>
+      <div id="qrResult" class="alert hidden"></div>
+    </div>
+
+    <!-- Step 2 — Face -->
+    <div class="glass-card step-panel hidden" id="panel-face">
+      <div class="panel-icon">👤</div>
+      <h2>Face Verification</h2>
+      <p class="panel-sub">Look straight at the camera. Blink twice to confirm you're live.</p>
+      <div class="cam-frame">
+        <video id="faceVideo" autoplay playsinline muted></video>
+        <canvas id="faceOverlay"></canvas>
+        <div class="cam-placeholder hidden" id="facePlaceholder">
+          <svg viewBox="0 0 24 24"><path d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Camera off</span>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Camera</label>
+        <select id="faceCameraMode" class="input">
+          <option value="user">Front camera</option>
+          <option value="environment">Back camera</option>
+        </select>
+      </div>
+      <div id="faceStatus" class="alert">Initialising face models...</div>
+      <div class="blink-prompt hidden" id="livenessPrompt">
+        <div class="blink-dots">
+          <span id="blink1" class="blink-dot"></span>
+          <span id="blink2" class="blink-dot"></span>
+        </div>
+        <span id="livenessText">Blink twice to confirm liveness</span>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-icon hidden" id="captureFaceBtn">
+          <svg viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Capture Face
+        </button>
+        <button class="btn btn-ghost" id="skipFaceBtn">Skip (manual review)</button>
+      </div>
+    </div>
+
+    <!-- Step 3 — GPS -->
+    <div class="glass-card step-panel hidden" id="panel-gps">
+      <div class="panel-icon">📍</div>
+      <h2>Location Verification</h2>
+      <p class="panel-sub">Allow location access to confirm you are inside the classroom.</p>
+      <div class="gps-card">
+        <div class="gps-row"><span class="gps-label">Latitude</span><span class="gps-val" id="gpsLat">—</span></div>
+        <div class="gps-row"><span class="gps-label">Longitude</span><span class="gps-val" id="gpsLng">—</span></div>
+        <div class="gps-row"><span class="gps-label">Accuracy</span><span class="gps-val" id="gpsAcc">—</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-icon" id="getGpsBtn">
+          <svg viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Get My Location
+        </button>
+        <button class="btn btn-ghost" id="skipGpsBtn">Skip</button>
+      </div>
+      <div id="gpsStatus" class="alert hidden"></div>
+    </div>
+
+    <!-- Step 4 — Submit -->
+    <div class="glass-card step-panel hidden" id="panel-submit">
+      <div class="panel-icon">✅</div>
+      <h2>Submit Attendance</h2>
+      <p class="panel-sub">Review your checks and confirm your Student ID.</p>
+      <div class="check-summary" id="summaryGrid"></div>
+      <div class="form-field">
+        <label>Your Student ID</label>
+        <input type="text" id="attendStudentId" class="input" placeholder="e.g. STU001"/>
+      </div>
+      <button class="btn btn-success btn-lg btn-icon" id="submitAttendanceBtn">
+        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Mark Me Present
+      </button>
+      <div id="submitResult" class="alert hidden"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PAGE: ENROLL FACE
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="page hidden" id="page-enroll">
+    <div class="page-hero">
+      <h1>Enroll Your Face</h1>
+      <p>One-time setup — your face is stored securely for future attendance checks.</p>
+    </div>
+    <div class="glass-card" style="max-width:560px">
+      <div class="form-field">
+        <label>Student ID</label>
+        <input type="text" id="enrollStudentId" class="input" placeholder="e.g. STU001"/>
+      </div>
+      <div class="form-field">
+        <label>Camera</label>
+        <select id="enrollCameraMode" class="input">
+          <option value="user">Front camera</option>
+          <option value="environment">Back camera</option>
+        </select>
+      </div>
+      <div class="cam-frame">
+        <video id="enrollVideo" autoplay playsinline muted></video>
+        <canvas id="enrollOverlay"></canvas>
+        <div class="cam-placeholder" id="enrollPlaceholder">
+          <svg viewBox="0 0 24 24"><path d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Camera off</span>
+        </div>
+      </div>
+      <div id="enrollFaceStatus" class="alert">Start camera to begin.</div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-icon" id="startEnrollCamera">
+          <svg viewBox="0 0 24 24"><path d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+          Start Camera
+        </button>
+        <button class="btn btn-success btn-icon hidden" id="captureEnrollBtn">
+          <svg viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Capture &amp; Enroll
+        </button>
+      </div>
+      <div id="enrollResult" class="alert hidden"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PAGE: ADMIN DASHBOARD
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="page hidden" id="page-admin">
+    <div class="page-hero">
+      <h1>Admin Dashboard</h1>
+      <p>Manage sessions, monitor attendance, export reports.</p>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-view="overview">Overview</button>
+      <button class="tab-btn" data-view="sessions">Sessions</button>
+      <button class="tab-btn" data-view="live">Live</button>
+      <button class="tab-btn" data-view="map">Map</button>
+      <button class="tab-btn" data-view="students">Students</button>
+    </div>
+
+    <!-- Overview -->
+    <div class="tab-panel active" id="view-overview">
+      <div class="stat-grid">
+        <div class="stat-card c-indigo"><div class="stat-icon">👥</div><div class="stat-val" id="statStudents">—</div><div class="stat-label">Students</div></div>
+        <div class="stat-card c-sky"><div class="stat-icon">📋</div><div class="stat-val" id="statSessions">—</div><div class="stat-label">Sessions</div></div>
+        <div class="stat-card c-violet"><div class="stat-icon">🔴</div><div class="stat-val" id="statActive">—</div><div class="stat-label">Active Now</div></div>
+        <div class="stat-card c-green"><div class="stat-icon">✅</div><div class="stat-val" id="statPresent">—</div><div class="stat-label">Present Today</div></div>
+        <div class="stat-card c-amber"><div class="stat-icon">⚠️</div><div class="stat-val" id="statPartial">—</div><div class="stat-label">Needs Review</div></div>
+        <div class="stat-card c-slate"><div class="stat-icon">📅</div><div class="stat-val" id="statDate">—</div><div class="stat-label">Date</div></div>
+      </div>
+      <button class="btn btn-outline btn-icon" id="refreshStats">
+        <svg viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Refresh
+      </button>
+    </div>
+
+    <!-- Sessions -->
+    <div class="tab-panel hidden" id="view-sessions">
+      <div class="panel-toolbar">
+        <h3>Class Sessions</h3>
+        <button class="btn btn-primary btn-icon" id="openCreateSession">
+          <svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+          New Session
+        </button>
+      </div>
+
+      <!-- Create form -->
+      <div class="glass-card form-card hidden" id="createSessionForm">
+        <h3>Create New Session</h3>
+        <div class="form-grid2">
+          <div class="form-field"><label>Course Name</label><input type="text" id="sCourse" class="input" placeholder="e.g. CS101 Algorithms"/></div>
+          <div class="form-field"><label>Faculty ID</label><input type="text" id="sFaculty" class="input" placeholder="e.g. FAC001"/></div>
+          <div class="form-field"><label>Room / Location</label><input type="text" id="sLocName" class="input" placeholder="e.g. Room B204"/></div>
+          <div class="form-field"><label>Latitude</label><input type="number" step="any" id="sLat" class="input" placeholder="12.9716"/></div>
+          <div class="form-field"><label>Longitude</label><input type="number" step="any" id="sLng" class="input" placeholder="77.5946"/></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline btn-icon" id="useMyLocationBtn">
+            <svg viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+            Use My Location
+          </button>
+          <button class="btn btn-success btn-icon" id="createSessionBtn">
+            <svg viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+            Create &amp; Generate QR
+          </button>
+          <button class="btn btn-ghost" id="cancelCreateSession">Cancel</button>
+        </div>
+      </div>
+
+      <div id="sessionsList"></div>
+    </div>
+
+    <!-- Live -->
+    <div class="tab-panel hidden" id="view-live">
+      <div class="panel-toolbar">
+        <h3>Live Attendance</h3>
+        <div class="btn-row">
+          <select id="liveSessionSelect" class="input select-sm"></select>
+          <button class="btn btn-outline btn-icon" id="refreshLive">
+            <svg viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh
+          </button>
+          <button class="btn btn-ghost btn-icon" id="exportCsvBtn">
+            <svg viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+      <div id="liveTable"></div>
+    </div>
+
+    <!-- Map -->
+    <div class="tab-panel hidden" id="view-map">
+      <div class="panel-toolbar">
+        <h3>Check-in Map</h3>
+        <select id="mapSessionSelect" class="input select-sm"></select>
+      </div>
+      <div id="attendanceMap"></div>
+    </div>
+
+    <!-- Students -->
+    <div class="tab-panel hidden" id="view-students">
+      <h3 style="margin-bottom:16px">Registered Students</h3>
+      <div id="studentsList"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════════
+       PAGE: REGISTER STUDENT
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <section class="page hidden" id="page-register">
+    <div class="page-hero">
+      <h1>Register Student</h1>
+      <p>Add a new student to the system. Then enroll their face.</p>
+    </div>
+    <div class="glass-card" style="max-width:480px">
+      <div class="form-field"><label>Student ID</label><input type="text" id="regId" class="input" placeholder="STU001"/></div>
+      <div class="form-field"><label>Full Name</label><input type="text" id="regName" class="input" placeholder="Jane Doe"/></div>
+      <div class="form-field"><label>Email</label><input type="email" id="regEmail" class="input" placeholder="jane@university.edu"/></div>
+      <button class="btn btn-success btn-lg btn-icon" id="registerStudentBtn">
+        <svg viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+        Register Student
+      </button>
+      <div id="registerResult" class="alert hidden"></div>
+    </div>
+  </section>
+
+</div><!-- /main-wrap -->
+
+<!-- ── QR Modal ──────────────────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="qrModal">
+  <div class="modal-box">
+    <button class="modal-x" id="closeQrModal">
+      <svg viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <div class="modal-badge">SESSION QR</div>
+    <h3 id="qrModalTitle">Session QR Code</h3>
+    <p class="modal-sub">Show this to students — expires in <strong id="qrExpiryMins">10</strong> min</p>
+    <div class="qr-wrap">
+      <img id="qrModalImg" src="" alt="QR Code"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-icon" id="refreshQrBtn">
+        <svg viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Refresh QR
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

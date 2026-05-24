@@ -1,0 +1,23 @@
+# ── Web framework ─────────────────────────────────────────────────────────────
+Flask==3.0.3
+Flask-CORS==4.0.1
+Flask-SQLAlchemy==3.1.1
+
+# ── Auth & QR code generation ─────────────────────────────────────────────────
+PyJWT==2.8.0
+qrcode[pil]==7.4.2
+
+# ── GPS radius check (Haversine via geopy) ────────────────────────────────────
+geopy==2.4.1
+
+# ── Face embedding storage & comparison (pure numpy, no ML framework) ─────────
+numpy==1.26.4
+Pillow==10.3.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv==1.0.1
+gunicorn==22.0.0
+
+# ── Total installed size: ~85 MB — safe for 500 MB free-tier ─────────────────
+# Face detection & 128-d FaceNet embeddings run entirely in the browser
+# via face-api.js (justadudewhohacks) — no server-side ML libraries needed.
