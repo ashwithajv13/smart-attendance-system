@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# Python build files
+__pycache__/
+*.py[cod]
+
+# Database files
+database/*.db
+
+# VS Code settings
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
