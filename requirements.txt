@@ -18,6 +18,9 @@ Pillow==10.3.0
 python-dotenv==1.0.1
 gunicorn==22.0.0
 
+# Optional Postgres driver for managed DB services (Render, Railway, Heroku)
+psycopg2-binary==2.9.6
+
 # ── Total installed size: ~85 MB — safe for 500 MB free-tier ─────────────────
 # Face detection & 128-d FaceNet embeddings run entirely in the browser
 # via face-api.js (justadudewhohacks) — no server-side ML libraries needed.

@@ -24,17 +24,25 @@ load_dotenv()
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
-BASE_DIR     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATABASE_DIR = os.path.join(BASE_DIR, "database")
-os.makedirs(DATABASE_DIR, exist_ok=True)
-DATABASE_PATH = os.path.join(DATABASE_DIR, "attendance.db")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Use a managed database if provided (e.g. Render/Heroku `DATABASE_URL`),
+# otherwise fall back to a local SQLite file for development.
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL:
+    sql_uri = DATABASE_URL
+else:
+    DATABASE_DIR = os.path.join(BASE_DIR, "database")
+    os.makedirs(DATABASE_DIR, exist_ok=True)
+    DATABASE_PATH = os.path.join(DATABASE_DIR, "attendance.db")
+    sql_uri = f"sqlite:///{DATABASE_PATH}"
 
 app = Flask(
     __name__,
     template_folder=os.path.join(BASE_DIR, "frontend"),
     static_folder=os.path.join(BASE_DIR, "frontend", "static"),
 )
-app.config["SQLALCHEMY_DATABASE_URI"]        = f"sqlite:///{DATABASE_PATH}"
+app.config["SQLALCHEMY_DATABASE_URI"] = sql_uri
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 CORS(app, origins=os.getenv("CORS_ORIGINS", "*"))
