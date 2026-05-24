@@ -1,0 +1,8 @@
+services:
+  - type: web_service
+    name: smart-attendance-system
+    env: python
+    plan: free
+    branch: master
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn backend.app:app
