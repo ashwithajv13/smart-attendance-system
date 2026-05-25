@@ -26,24 +26,46 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Ensure database directory exists
+os.makedirs(os.path.join(BASE_DIR, "database"), exist_ok=True)
+
 # Use a managed database if provided (e.g. Render/Heroku `DATABASE_URL`),
 # otherwise fall back to a local SQLite file for development.
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
     sql_uri = DATABASE_URL
 else:
-    DATABASE_DIR = os.path.join(BASE_DIR, "database")
-    os.makedirs(DATABASE_DIR, exist_ok=True)
-    DATABASE_PATH = os.path.join(DATABASE_DIR, "attendance.db")
-    sql_uri = f"sqlite:///{DATABASE_PATH}"
+    # Create absolute path and format for SQLite on Windows
+    # sqlite:///{drive}:/path/to/db.sqlite3
+    db_path = os.path.join(BASE_DIR, "database", "attendance.db")
+    # Convert to forward slashes
+    db_path = db_path.replace("\\", "/")
+    # For absolute Windows paths like C:/Users/..., sqlite needs: sqlite:///C:/...
+    sql_uri = f"sqlite:///{db_path}"
 
 app = Flask(
     __name__,
     template_folder=os.path.join(BASE_DIR, "frontend"),
     static_folder=os.path.join(BASE_DIR, "frontend", "static"),
 )
+
 app.config["SQLALCHEMY_DATABASE_URI"] = sql_uri
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# For SQLite, use NullPool to avoid connection pooling issues
+if sql_uri.startswith("sqlite://"):
+    from sqlalchemy.pool import NullPool
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "poolclass": NullPool,
+        "connect_args": {"timeout": 10},
+    }
+else:
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_size": 10,
+        "pool_recycle": 3600,
+        "pool_pre_ping": True,
+        "connect_args": {"timeout": 10},
+    }
 
 CORS(app, origins=os.getenv("CORS_ORIGINS", "*"))
 db = SQLAlchemy(app)
@@ -665,10 +687,16 @@ def server_error(_):
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
+    # Change to project root directory so relative paths work correctly
+    os.chdir(BASE_DIR)
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception as e:
+        print(f"Warning: Could not create database tables: {e}")
+        print("The database may already exist or there may be a connection issue.")
     app.run(
         debug=os.getenv("DEBUG", "False") == "True",
-        host=os.getenv("SERVER_HOST", "0.0.0.0"),
+        host=os.getenv("SERVER_HOST", "127.0.0.1"),
         port=int(os.getenv("PORT", os.getenv("SERVER_PORT", "5000"))),
     )
